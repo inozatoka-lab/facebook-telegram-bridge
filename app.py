@@ -1,31 +1,56 @@
-import requests
 from flask import Flask, request
+import requests
 import os
 
 app = Flask(__name__)
 
-VERIFY_TOKEN = os.environ.get("VERIFY_TOKEN")
+VERIFY_TOKEN = os.environ.get("VERIFY_TOKEN", "my_verify_token")
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
 CHAT_ID = os.environ.get("CHAT_ID")
+
+@app.route("/", methods=["GET"])
+def index():
+    return "Facebook → Telegram Bridge is running."
 
 @app.route("/webhook", methods=["GET", "POST"])
 def webhook():
     if request.method == "GET":
-        if request.args.get("hub.verify_token") == VERIFY_TOKEN:
-            return request.args.get("hub.challenge")
-        return "Verification failed", 403
-    
-    elif request.method == "POST":
-        data = request.json
-        if "message" in data["entry"][0]["messaging"][0]:
-            message = data["entry"][0]["messaging"][0]["message"]["text"]
-            
-            # გადაგზავნა Telegram-ში
-            url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
-            payload = {"chat_id": CHAT_ID, "text": message}
-            requests.post(url, json=payload)
-        
-        return "ok", 200
+        # Facebook verification
+        mode = request.args.get("hub.mode")
+        token = request.args.get("hub.verify_token")
+        challenge = request.args.get("hub.challenge")
+        if mode == "subscribe" and token == VERIFY_TOKEN:
+            return challenge, 200
+        else:
+            return "Verification failed", 403
+
+    if request.method == "POST":
+        data = request.get_json(silent=True)
+
+        # Case 1: Sample test JSON
+        if "sample" in data:
+            text = data["sample"]["value"]["message"].get("text", "")
+            if text:
+                requests.post(
+                    f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage",
+                    json={"chat_id": CHAT_ID, "text": text}
+                )
+            return "EVENT_RECEIVED", 200
+
+        # Case 2: Real Messenger JSON
+        if "entry" in data:
+            for entry in data["entry"]:
+                for msg_event in entry.get("messaging", []):
+                    if "message" in msg_event:
+                        text = msg_event["message"].get("text", "")
+                        if text:
+                            requests.post(
+                                f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage",
+                                json={"chat_id": CHAT_ID, "text": text}
+                            )
+            return "EVENT_RECEIVED", 200
+
+        return "No data", 200
 
 if __name__ == "__main__":
-    app.run()
+    app.run(host="0.0.0.0", port=10000)
