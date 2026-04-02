@@ -28,7 +28,7 @@ def webhook():
     if request.method == "POST":
         data = request.get_json(silent=True)
 
-        # Case 1: Sample test JSON (Send to My Server)
+        # Case 1: Sample test JSON (Test button)
         if "sample" in data:
             text = data["sample"]["value"]["message"].get("text", "")
             if text:
