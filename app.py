@@ -4,6 +4,7 @@ import os
 
 app = Flask(__name__)
 
+# Environment Variables (Render → Settings → Environment)
 VERIFY_TOKEN = os.environ.get("VERIFY_TOKEN", "my_verify_token")
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
 CHAT_ID = os.environ.get("CHAT_ID")
@@ -27,17 +28,17 @@ def webhook():
     if request.method == "POST":
         data = request.get_json(silent=True)
 
-        # Case 1: Sample test JSON
+        # Case 1: Sample test JSON (Send to My Server)
         if "sample" in data:
             text = data["sample"]["value"]["message"].get("text", "")
             if text:
                 requests.post(
                     f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage",
-                    json={"chat_id": CHAT_ID, "text": text}
+                    json={"chat_id": CHAT_ID, "text": f"[SAMPLE] {text}"}
                 )
             return "EVENT_RECEIVED", 200
 
-        # Case 2: Real Messenger JSON
+        # Case 2: Real Messenger JSON (user messages)
         if "entry" in data:
             for entry in data["entry"]:
                 for msg_event in entry.get("messaging", []):
@@ -46,7 +47,7 @@ def webhook():
                         if text:
                             requests.post(
                                 f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage",
-                                json={"chat_id": CHAT_ID, "text": text}
+                                json={"chat_id": CHAT_ID, "text": f"[REAL] {text}"}
                             )
             return "EVENT_RECEIVED", 200
 
